@@ -193,7 +193,7 @@ def rl_combined(data_W, num_fold, numF):
         classRate[count] = tempp / float(2 * temp[0])
 
         print(classRate[count])
-        count = count + 1
+        count = count + 1 
     return classRate
 
 
