@@ -10,6 +10,7 @@ def calculate_csp(x1,x2):
     # compute covariance matrices of the two classes
     temp = np.shape(x1[0])
     n_chans = temp[0]
+    n_chans1 = np.shape(x2[0])[0]
 
     temp = np.shape(x1)
     num_trials = temp[0]
@@ -20,6 +21,8 @@ def calculate_csp(x1,x2):
     for ik in range(num_trials):
         c1 = c1+np.cov(x1[ik])/np.trace(np.cov(x1[ik]))
         c2 = c2+np.cov(x2[ik])/np.trace(np.cov(x2[ik]))
+        #print(np.cov(x1[ik]).shape)
+        #print(c1.shape)
 
     c1 = np.divide(c1,num_trials)
     c2 = np.divide(c2,num_trials)
