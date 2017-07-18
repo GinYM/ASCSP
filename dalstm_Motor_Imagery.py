@@ -156,11 +156,13 @@ def build_cnn(input_var=None, w_init=None, n_layers=(4, 2, 1), n_filters_first=3
     # Input layer
     network = InputLayer(shape=(None, n_colors, imsize, imsize),
                                         input_var=input_var)
+    #print(len(w_init))
     for i, s in enumerate(n_layers):
         for l in range(s):
             # Add ReLU
+            #print(count)
             network = Conv2DLayer(network, num_filters=n_filters_first * (2 ** i), filter_size=(3, 3),
-                          W=w_init[count], pad='same',nonlinearity=lasagne.nonlinearities.rectify)
+                          W=w_init[count], pad='same')
             #add batch normalization
             weights.append(network.W)
             network = batch_norm(network)
@@ -295,12 +297,13 @@ def build_convpool_dalstm(input_vars,input_vars_target, nb_classes, grad_clip=11
     :param n_timewin: number of time windows in the snippet
     :return: a pointer to the output of last layer
     """
-
+    n_layers = (4,2,1)
     domain_classes = 2
     dropout_value = 0
-    is_gradient_reversal = True
+    is_gradient_reversal = False #True
 
-    da_lambda = 1
+    ## change here!!
+    da_lambda = 0
 
     convnets = []
     daconvnets = []
@@ -309,9 +312,9 @@ def build_convpool_dalstm(input_vars,input_vars_target, nb_classes, grad_clip=11
     for i in range(n_timewin):
         if i == 0:
             #print(input_vars[i])
-            convnet, w_init = build_cnn(input_vars[i], imsize=imsize, n_colors=n_colors)
+            convnet, w_init = build_cnn(input_vars[i], imsize=imsize, n_colors=n_colors,n_layers = n_layers)
         else:
-            convnet, _ = build_cnn(input_vars[i], w_init=w_init, imsize=imsize, n_colors=n_colors)
+            convnet, _ = build_cnn(input_vars[i], w_init=w_init, imsize=imsize, n_colors=n_colors,n_layers = n_layers)
         convnets.append(FlattenLayer(convnet))
     # at this point convnets shape is [numTimeWin][n_samples, features]
     # we want the shape to be [n_samples, features, numTimeWin]
@@ -348,7 +351,7 @@ def build_convpool_dalstm(input_vars,input_vars_target, nb_classes, grad_clip=11
         #if i == 0:
         #    convnet, w_init = build_cnn(input_vars[i], imsize=imsize, n_colors=n_colors)
         #else:
-        convnet, _ = build_cnn(input_vars_target[i], w_init=w_init, imsize=imsize, n_colors=n_colors)
+        convnet, _ = build_cnn(input_vars_target[i], w_init=w_init, imsize=imsize, n_colors=n_colors,n_layers = n_layers)
         convnets.append(FlattenLayer(convnet))
     target_convpool = ConcatLayer(convnets)
     target_convpool = ReshapeLayer(target_convpool, ([0], n_timewin, get_output_shape(convnets[0])[1]))
@@ -376,6 +379,7 @@ def build_convpool_dalstm(input_vars,input_vars_target, nb_classes, grad_clip=11
     
 
     # Input to LSTM should have the shape as (batch size, SEQ_LENGTH, num_features)
+    get_feature_extract = convpool
     convpool = LSTMLayer(convpool, num_units=128, grad_clipping=grad_clip,
         nonlinearity=lasagne.nonlinearities.tanh)
     # We only need the final prediction, we isolate that quantity and feed it
@@ -392,7 +396,7 @@ def build_convpool_dalstm(input_vars,input_vars_target, nb_classes, grad_clip=11
 
     
 
-    return [convpool,daconvpool,target_net,target_output_nosm,get_gradient_reversal_0,get_gradient_reversal_1]
+    return [convpool,daconvpool,target_net,target_output_nosm,get_gradient_reversal_0,get_gradient_reversal_1,get_feature_extract]
     
 
 def build_convpool_mix(input_vars, nb_classes, grad_clip=110, imsize=32, n_colors=3, n_timewin=3):
@@ -560,14 +564,16 @@ def train(images, labels, fold, model_type, batch_size=32, num_epochs=5):
     elif model_type == 'maxpool':
         network = build_convpool_max(input_var, num_classes)
     elif model_type == 'dalstm':
-        [source_class,source_domain,target_domain,target_output_nosm,gd0,gd1] = build_convpool_dalstm(input_var,num_classes,100,imsize=32, n_colors=3)
+        [source_class,source_domain,target_domain,target_output_nosm,gd0,gd1] = build_convpool_dalstm(input_var,num_classes,100)
     elif model_type == 'lstm':
         network = build_convpool_lstm(input_var, num_classes, 100)
     elif model_type == 'mix':
         network = build_convpool_mix(input_var, num_classes, 100)
     elif model_type == 'cnn':
         input_var = T.tensor4('inputs')
-        network, _ = build_cnn(input_var)
+        
+        
+        network, _ = build_cnn(input_var,imsize=images.shape[2], n_colors=images.shape[1])
         network = DenseLayer(lasagne.layers.dropout(network, p=.5),
                              num_units=256,
                              nonlinearity=lasagne.nonlinearities.rectify)
@@ -612,6 +618,8 @@ def train(images, labels, fold, model_type, batch_size=32, num_epochs=5):
         start_time = time.time()
         for batch in iterate_minibatches(X_train, y_train, batch_size, shuffle=False):
             inputs, targets = batch
+            #print(inputs)
+            #print(targets)
             train_err += train_fn(inputs, targets)
             train_batches += 1
         # And a full pass over the validation data:
@@ -700,13 +708,13 @@ def datrain(images, labels, fold, model_type, batch_size=32, num_epochs=5):
     print("Building model and compiling functions...")
     # Building the appropriate model
     if model_type == '1dconv':
-        network = build_convpool_conv1d(input_var, num_classes)
+        network = build_convpool_conv1d(input_var, num_classes,imsize=images.shape[3], n_colors=images.shape[2])
     elif model_type == 'maxpool':
         network = build_convpool_max(input_var, num_classes)
     elif model_type == 'dalstm':
         #input_var_source = T.tensor4('inputs_source')
         #input_var_target = T.tensor4('inputs_target')
-        [source_class,source_domain,target_domain,target_output_nosm,gd0,gd1] = build_convpool_dalstm(input_var_source,input_var_target,num_classes,100,imsize=images.shape[3], n_colors=images.shape[2])
+        [source_class,source_domain,target_domain,target_output_nosm,gd0,gd1,get_feature_extract] = build_convpool_dalstm(input_var_source,input_var_target,num_classes,100,imsize=images.shape[3], n_colors=images.shape[2])
     elif model_type == 'lstm':
         network = build_convpool_lstm(input_var, num_classes, 100)
     elif model_type == 'mix':
@@ -759,6 +767,7 @@ def datrain(images, labels, fold, model_type, batch_size=32, num_epochs=5):
     params_total = lasagne.layers.get_all_params([source_class,source_domain],trainable=True)
 
     #params = lasagne.layers.get_all_params(network, trainable=True)
+    # change the learning rate
     updates_class = lasagne.updates.adam(source_class_loss,params_class,learning_rate=0.001)
     #updates_domain = lasagne.updates.adam(source_domain_loss,params_domain,learning_rate=0.001)
     updates_domain = lasagne.updates.adam(total_domain_loss,params_domain,learning_rate=0.001)
@@ -801,10 +810,11 @@ def datrain(images, labels, fold, model_type, batch_size=32, num_epochs=5):
     target_output = lasagne.layers.get_output(target_output_nosm,deterministic=True)
     gradient0 = lasagne.layers.get_output(gd0,deterministic=True)
     gradient1 = lasagne.layers.get_output(gd1,deterministic = True)
-    train_fn_class = theano.function([input_var_source, class_label], source_class_loss, updates=updates_class)
+    feature_extract = lasagne.layers.get_output(get_feature_extract,deterministic=True)
+    train_fn_class = theano.function([input_var_source, class_label], [source_class_loss,feature_extract], updates=updates_class)
     train_fn_domain = theano.function([input_var_source,input_var_target,source_domain_label,target_domain_label], total_domain_loss, updates=updates_domain)
 
-    train_fn = theano.function([input_var_source,input_var_target,class_label,source_domain_label,target_domain_label],[total_loss,source_class_loss,source_domain_loss,target_domain_loss,target_output,gradient0,gradient1],updates=updates_total)
+    train_fn = theano.function([input_var_source,input_var_target,class_label,source_domain_label,target_domain_label],[total_loss,source_class_loss,source_domain_loss,target_domain_loss,target_output,gradient0,gradient1,feature_extract],updates=updates_total)
 
 
     ##here!!!!!!!!!!!!!!!!!!!!!! 
@@ -836,16 +846,20 @@ def datrain(images, labels, fold, model_type, batch_size=32, num_epochs=5):
             inputs_source,inputs_target,source_label= batch
             sd_label = np.squeeze(np.zeros([inputs_source.shape[1],1],dtype = np.int32))
             td_label = np.squeeze(np.ones([inputs_target.shape[1],1],dtype = np.int32))
-            #train_loss = train_fn_class(inputs_source,source_label)
+            [train_loss,feature_output] = train_fn_class(inputs_source,source_label)
+            print(feature_output)
             #train_loss = train_fn_domain(inputs_source,inputs_target,sd_label,td_label)
-            [train_loss,loss_sc,loss_sd,loss_td,target_output,gd0,gd1] = train_fn(inputs_source,inputs_target,source_label,sd_label,td_label)
+            
+            ###change here!!!
+
+            #[train_loss,loss_sc,loss_sd,loss_td,target_output,gd0,gd1] = train_fn(inputs_source,inputs_target,source_label,sd_label,td_label)
             train_err += train_loss
-            err_sc += loss_sc
-            err_sd += loss_sd   
-            err_td += loss_td 
+            #err_sc += loss_sc
+            #err_sd += loss_sd   
+            #err_td += loss_td 
             #print(target_output) 
-            print(gd0)
-            print(gd1)
+            #print(gd0)
+            #print(gd1)
             
 
 
@@ -924,13 +938,20 @@ if __name__ == '__main__':
         locs_2d.append(azim_proj(e))
     
     # Just need the first 59 electrodes.
-    locs_2d = locs_2d[0:59]
-    feats = np.load('../data/data_dalstm.npy')
+    
     #feats = scipy.io.loadmat('../EEGLearn-master/Sample data/FeatureMat_timeWin.mat')['features']
     #subj_nums = np.squeeze(scipy.io.loadmat('../EEGLearn-master/Sample data/trials_subNums.mat')['subjectNum'])
-    subj_nums = np.load('../data/subj_num.npy')
+    
     # Leave-Subject-Out cross validation
+    
+
     fold_pairs = []
+    
+    locs_2d = locs_2d[0:59]
+    feats = np.load('../data/data_dalstm.npy')
+    subj_nums = np.load('../data/subj_num.npy')
+    
+    
 
     min_crop = 100000
     last_idx = 0
@@ -972,26 +993,32 @@ if __name__ == '__main__':
         #np.random.shuffle(ts)
         fold_pairs.append((tr, ts)) #training and testing sets
 
-        
-    '''
+    each_freq = 59*11
+    
     # CNN Mode
     print('Generating images...')
     # Find the average response over time windows
-    av_feats = reduce(lambda x, y: x+y, [feats[:, i*192:(i+1)*192] for i in range(feats.shape[1] / 192)]) #7 time windows
-    av_feats = av_feats / (feats.shape[1] / 192)
-    images = gen_images(np.array(locs_2d),
-                                  av_feats,
-                                  32, normalize=False)
+    #av_feats = reduce(lambda x, y: x+y, [feats[:, i*each_freq:(i+1)*each_freq] for i in range(feats.shape[1] / each_freq)]) #7 time windows
+    #av_feats = av_feats / (feats.shape[1] / each_freq)
+    images = np.load('../data/images_cnn.npy')
+    #images = gen_images(np.array(locs_2d),
+    #                              av_feats,
+    #                              16, normalize=False)
+    #np.save('../data/images_cnn.npy',images)
     print('\n')
 
     # Class labels should start from 0
     print('Training the CNN Model...')
-    train(images, np.squeeze(feats[:, -1]) - 1, fold_pairs[2], 'cnn')
+    print(images.shape)
+    print(feats.shape)
+    train(images, np.squeeze(feats[:, -1]) , fold_pairs[2], 'cnn',batch_size=36)
+    
+
     '''
     # Conv-LSTM Mode
     print('Generating images for all time windows...')
 
-    each_freq = 59*11
+    
     image_size = 16
     '''
     images_timewin = np.array([gen_images(np.array(locs_2d),
@@ -1010,6 +1037,10 @@ if __name__ == '__main__':
     #print(len(fold_pairs[2]))
     #print(fold_pairs[2][0])
     #print(fold_pairs[2][1])
-    datrain(images_timewin, np.squeeze(feats[:, -1]) , fold_pairs[2], 'dalstm',batch_size=36)
+    datrain(images_timewin, np.squeeze(feats[:, -1]) , fold_pairs[2], 'dalstm',batch_size=36,num_epochs=10)
 
+
+    
+    
+    '''
     print('Done!')
