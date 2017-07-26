@@ -3,6 +3,13 @@ import scipy as sp
 import random as rd
 import scipy.io as sio
 from bcitools import balance_classes,log_power
+from math import log
+import numpy.linalg as nl
+
+def KL_distance(Cs,Ct):
+    Ct_inv = nl.inv(Ct)
+    result = (log(nl.det(Ct)/nl.det(Cs))+np.trace(np.dot(Ct_inv,Cs))-len(Cs))/2
+    return result
 
 def get_data_from_mat(data_W):
     data_Gr = list()
@@ -60,6 +67,78 @@ def find_nearest_pd(m):
             d[i]=0
     m_new = np.dot(np.dot(v,np.diag(d)),v.transpose())
     return m_new
+
+
+def calculate_rccsp_norm(x1,x2,Cs_Ct,alpha):
+    #x1,x2 input matrix of two class
+    #G1, G2 general matrix for class 1 2
+    #alpha,beta parameter
+    temp = np.shape(x1[0])
+    n_chans = temp[0]
+    c1 = np.zeros([n_chans,n_chans])
+    c2 = np.zeros([n_chans,n_chans])
+    num_trials = np.shape(x1)[0]
+    for trial_idx in range(num_trials):
+        c1 = c1+np.cov(x1[trial_idx])/np.trace(np.cov(x1[trial_idx]))
+        c2 = c2+np.cov(x2[trial_idx])/np.trace(np.cov(x2[trial_idx]))
+        #print(c1)
+
+    c1 = np.divide(c1,num_trials)
+    #print(num_trials)
+    c2 = np.divide(c2,num_trials)
+    
+
+    d1,v1 = sp.linalg.eig(c1,c2+alpha*Cs_Ct)
+    d2,v2 = sp.linalg.eig(c2,c1+alpha*Cs_Ct)
+    
+    indx1 = np.argsort(d1)
+    indx2 = np.argsort(d2)
+
+    indx1 = indx1[::-1]
+    indx2 = indx2[::-1]
+
+    v1 = v1.take(indx1, axis=1)
+    v2 = v2.take(indx2, axis=1)
+
+    return [v1,v2]
+
+def calculate_rccsp_st(x1,x2,G1,G2,Cs_Ct,alpha,beta,source_num):
+    #x1,x2 input matrix of two class
+    #G1, G2 general matrix for class 1 2
+    #alpha,beta parameter
+    temp = np.shape(x1[0])
+    n_chans = temp[0]
+    c1 = np.zeros([n_chans,n_chans])
+    c2 = np.zeros([n_chans,n_chans])
+    num_trials = np.shape(x1)[0]
+    for trial_idx in range(num_trials):
+        c1 = c1+np.cov(x1[trial_idx])/np.trace(np.cov(x1[trial_idx]))
+        c2 = c2+np.cov(x2[trial_idx])/np.trace(np.cov(x2[trial_idx]))
+        #print(c1)
+
+    c1 = np.divide(c1,num_trials)
+    #print(num_trials)
+    c2 = np.divide(c2,num_trials)
+    if beta != 1:
+        c1_ = (1-beta)/source_num*c1 + beta*G1
+        c2_ = (1-beta)/source_num*c2 + beta*G2
+    else:
+        c1_ = c1
+        c2_ = c2
+
+    d1,v1 = sp.linalg.eig(c1_,c2_+alpha*Cs_Ct)
+    d2,v2 = sp.linalg.eig(c2_,c1_+alpha*Cs_Ct)
+    indx1 = np.argsort(d1)
+    indx2 = np.argsort(d2)
+
+    indx1 = indx1[::-1]
+    indx2 = indx2[::-1]
+
+    v1 = v1.take(indx1, axis=1)
+    v2 = v2.take(indx2, axis=1)
+
+    return [v1,v2]
+
 
 def calculate_rccsp(x1,x2,G1,G2,source,target,alpha,beta,source_num):
     #x1,x2 input matrix of two class
@@ -209,7 +288,7 @@ def CSP_filter(data_all,test_idx,general_matrix):
             end_idx = int(subj_each_idx_start[tidx]+subj_each_len[tidx])
             #print('start idx: %s' %(start_idx))
             #print('end idx: %s' % (end_idx))
-            v = calculate_rccsp(data_total[0][start_idx:end_idx, freq_idx], data_total[1][start_idx:end_idx, freq_idx],G1,G2,source,target,0.5,0.5,1)
+            v = calculate_rccsp(data_total[0][start_idx:end_idx, freq_idx], data_total[1][start_idx:end_idx, freq_idx],G1,G2,source,target,0.5,0.5,len(data_all)-1)
             avg_filter += v
             #extract train features
             train_filt_R = apply_rccsp(data_total[0][start_idx:end_idx, freq_idx],v, numF)
