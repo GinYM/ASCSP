@@ -1,7 +1,7 @@
 '''
-RCSP subject to subject without composite
+RCSP subject to subject with composite
 Test id: 5
-
+Main difference: calculate_rccsp_st
 
 '''
 
@@ -18,7 +18,7 @@ import bcitools
 
 from random import shuffle
 import math
-from CSP_util import apply_rccsp,calculate_rccsp,positive_transform,calculate_rccsp_norm
+from CSP_util import apply_rccsp,calculate_rccsp,positive_transform,calculate_rccsp_norm,calculate_rccsp_st
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ kf = KFold(n_splits=num_fold)
 classRate = np.zeros(num_fold)
 count = 0;
 #data_all = np.asarray(data_all)
-f = open('result/result_LDA_subj_to_subj','w')
+f = open('result/result_LDA_subj_to_subj_RCCSP','w')
 n_chan = 47
 
 general_matrix = np.load('/media/gin/hacker/UCSD_Summer_Research/data/CSP/CSP_covariance_matrix.npy')
@@ -104,11 +104,14 @@ general_matrix = np.load('/media/gin/hacker/UCSD_Summer_Research/data/CSP/CSP_co
 data_total = [data_all[i] for i in range(len(SUBS_NAM))]
 data_total = np.concatenate(data_total,axis = 1) #[0] right [1] left
 test_idx = int(len(SUBS_NAM)-1)
-N_t = 0
+#N_t = 0
 C_s = np.zeros([len(SUBS_NAM)-1,11,n_chan,n_chan])
 C_t = np.zeros([11,n_chan,n_chan])
 C_all = np.zeros([11,n_chan,n_chan])
 F_c = np.zeros([len(SUBS_NAM)-1,11])
+F_c_specific = np.zeros([len(SUBS_NAM)-1,11,2]) #with specific two labels 
+G_all = np.zeros([11,2,n_chan,n_chan])
+#N_t_specific = np.zeros(2)
 #C_t = general_matrix[int(len(SUBS_NAM)-1)]
 
 
@@ -118,14 +121,25 @@ for freq_idx in range(len(freqsRange)):
         C_s[i][freq_idx] = (general_matrix[i][freq_idx][0]+general_matrix[i][freq_idx][1])/2
         F_c[i][freq_idx] = np.sqrt(np.trace(np.cov(C_s[i][freq_idx]-C_t[freq_idx])))
         C_all[freq_idx] += positive_transform(C_s[i][freq_idx],C_t[freq_idx])/F_c[i][freq_idx]
+        F_c_specific[i][freq_idx][0] = np.sqrt(np.trace(np.cov(general_matrix[i][freq_idx][0]-C_t[freq_idx])))
+        F_c_specific[i][freq_idx][1] = np.sqrt(np.trace(np.cov(general_matrix[i][freq_idx][1]-C_t[freq_idx])))
+        G_all[freq_idx][0] += general_matrix[i][freq_idx][0]/F_c_specific[i][freq_idx][0]
+        G_all[freq_idx][1] += general_matrix[i][freq_idx][1]/F_c_specific[i][freq_idx][1]
+
+
 
 N_t = np.zeros(11)
+N_t_specific = np.zeros([11,2])
 for freq_idx in range(len(freqsRange)):
     for i in range(len(SUBS_NAM)-1):
         N_t[freq_idx] += 1/F_c[i][freq_idx]
+        N_t_specific[freq_idx][0] += 1/F_c_specific[i][freq_idx][0]
+        N_t_specific[freq_idx][1] += 1/F_c_specific[i][freq_idx][1]
 
 for freq_idx in range(len(freqsRange)):
-    C_all[freq_idx]/=N_t[freq_idx]
+    C_all[freq_idx] /= N_t[freq_idx]
+    G_all[freq_idx][0] /= N_t_specific[freq_idx][0]
+    G_all[freq_idx][1] /= N_t_specific[freq_idx][1]
 
 
 for train_idx in range(len(SUBS_NAM)-1):#  train_idx, test_idx in kf.split(np.ones(num_fold)):
@@ -147,11 +161,11 @@ for train_idx in range(len(SUBS_NAM)-1):#  train_idx, test_idx in kf.split(np.on
         target = np.zeros([n_chan,n_chan])
         source = (general_matrix[train_idx][freq_idx][0]+general_matrix[train_idx][freq_idx][1])/2
         target = (general_matrix[test_idx][freq_idx][0]+general_matrix[test_idx][freq_idx][1])/2
-        G1 = source
-        G2 = target
+        G1 = G_all[freq_idx][0]
+        G2 = G_all[freq_idx][1]
         start_idx = int(subj_each_idx_start[train_idx])
         end_idx = int(subj_each_idx_start[train_idx]+subj_each_len[train_idx])
-        v = calculate_rccsp_norm(data_total[0][start_idx:end_idx, freq_idx], data_total[1][start_idx:end_idx, freq_idx],C_all[freq_idx],0.5)
+        v = calculate_rccsp_st(data_total[0][start_idx:end_idx, freq_idx], data_total[1][start_idx:end_idx, freq_idx],G1,G2,C_all[freq_idx],0.5,0.5,len(SUBS_NAM)-1)
         train_filt_R = apply_rccsp(data_total[0][start_idx:end_idx, freq_idx],v, numF)
         train_logP_R[:, :, freq_idx] = np.squeeze(bcitools.log_power(train_filt_R))
         train_filt_L = apply_rccsp(data_total[1][start_idx:end_idx, freq_idx], v,numF)
