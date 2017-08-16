@@ -17,6 +17,10 @@ Because the subject difference, Subspace Alignment is adopted to reduce the sour
 
 After domain adaptation, LDA is used to classify.
 
+The algorithm is show as follows.
+
+![algorithm](Algorithm.png)
+
 ## Effect of Subspace Alignment
 
 ![no_sa](np_sa.png)
