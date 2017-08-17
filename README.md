@@ -19,12 +19,12 @@ After domain adaptation, LDA is used to classify.
 
 The algorithm is show as follows.
 
-![algorithm](Algorithm.png)
+![algorithm](figure/Algorithm.png)
 
 ## Effect of Subspace Alignment
 
-![no_sa](np_sa.png)
-![sa](sa.png)
+![no_sa](figure/np_sa.png)
+![sa](figure/sa.png)
 
 ## Result
 Following table and figure are the result of subject to subject transfer.
@@ -37,7 +37,7 @@ CSP    |0.5015 |0.4628 |0.5863 |0.5000 |0.5506|0.5202|0.0432
 GFK    |0.5031 |0.5772 |0.5031 |0.5710 |0.5617|0.5432|0.0331
 ASCSP  |**0.5864** |**0.5803** |**0.6728** |**0.6049** |**0.6080**|**0.6105**|0.0368
 
-![bar_all](plot_all.png)
+![bar_all](figure/plot_all.png)
 
 ## Usage
 
