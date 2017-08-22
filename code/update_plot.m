@@ -1,9 +1,9 @@
-function [result,store_idx] = update_v1(gm,data_source,data_target)
+function [result,store_idx] = update_plot(gm,data_source,data_target)
 csp_per_class=3;
 result=gm;
 %n = length(data_source{1});
 n = 162;
-num_select = 80;
+num_select = 162;
 acc = 0;
 total = 0;
 
@@ -27,16 +27,6 @@ for i = 1:160
     label_idx = 0;
     best_mean1 = 0;
     best_mean2 = 0;
-    
-    if flag == true
-        trainY = [(-1)*ones(n,1); ones(n,1)];
-        [W,B,class_means] = lda_train_reg(Xproj_tmp(1:324,:), trainY, 0);
-        [X_LDA predicted_y_class1] = lda_apply(Xproj_tmp(324+i,:), W, B);
-        %X_LDA
-        if predicted_y_class1 == 1 && X_LDA>0.005
-            continue;
-        end
-    end
     
     result_tmp = result;
     C_new = cov(data_target{floor((i-1)/n)+1}{mod((i-1),n)+1}')/trace(cov(data_target{floor((i-1)/n)+1}{mod((i-1),n)+1}'));

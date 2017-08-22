@@ -1,6 +1,6 @@
 
 close all
-fileID = fopen('result/result_ASACSP.txt','w');
+%fileID = fopen('result/result_ASACSP.txt','w');
 csp_per_class = 3;
 
 SUBS_NAM = {'S_BP-240416-1','S_BP-240416-2','S_BP-240416-3','S_BP-270416-2','S_BP-130516-1','S_BP-141216'};
@@ -8,9 +8,9 @@ freqsRange = [[1, 3]; [2, 5]; [4, 7];[6, 10]; [7, 12]; [10, 15]; [12, 19]; [18, 
 
 load('CSP_covariance_matrix_new.mat');
 
-for sub_idx = 2:2
+for sub_idx = 2
     
-fprintf(fileID,'Tain ID %d\n',sub_idx);
+%fprintf(fileID,'Tain ID %d\n',sub_idx);
     
 freqs_idx=5;
 name = ['/media/gin/hacker/UCSD_Summer_Research/data/output_new1/' SUBS_NAM{sub_idx},'freqs',num2str(freqsRange(freqs_idx,1)),'_',num2str(freqsRange(freqs_idx,2)),'_','shams_FP.mat'];
@@ -44,7 +44,7 @@ end
 
 %C1 = reshape(cm(sub_idx,1,1,:,:),[47,47]);
 
-for target_idx= [6] %[1:sub_idx-1 sub_idx+1:6]
+for target_idx= 5 %[1:sub_idx-1 sub_idx+1:6]
 name = ['/media/gin/hacker/UCSD_Summer_Research/data/output_new1/' SUBS_NAM{target_idx},'freqs',num2str(freqsRange(freqs_idx,1)),'_',num2str(freqsRange(freqs_idx,2)),'_','shams_FP.mat'];
 load(name)
 data_target = cell(1,2);
@@ -202,9 +202,9 @@ temp = [predicted_y_class1; predicted_y_class2];
 acc2 = sum(temp)/length(temp);   % this is the percent correct classification 
 disp(['Acc: ' num2str(acc2)])
 
-save store_plot X Xproj
+save store_plot_2_5 X Xproj
 
-fprintf(fileID,'Test ID %d ASACSP: %f  CSP: %f\n',target_idx,acc2,acc1);
+%fprintf(fileID,'Test ID %d ASACSP: %f  CSP: %f\n',target_idx,acc2,acc1);
 end
-fprintf(fileID,'\n');
+%fprintf(fileID,'\n');
 end
