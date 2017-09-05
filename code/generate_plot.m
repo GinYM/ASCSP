@@ -1,6 +1,5 @@
-
 close all
-%fileID = fopen('result/result_ASACSP.txt','w');
+
 csp_per_class = 3;
 
 SUBS_NAM = {'S_BP-240416-1','S_BP-240416-2','S_BP-240416-3','S_BP-270416-2','S_BP-130516-1','S_BP-141216'};
@@ -9,9 +8,7 @@ freqsRange = [[1, 3]; [2, 5]; [4, 7];[6, 10]; [7, 12]; [10, 15]; [12, 19]; [18, 
 load('CSP_covariance_matrix_new.mat');
 
 for sub_idx = 2
-    
-%fprintf(fileID,'Tain ID %d\n',sub_idx);
-    
+      
 freqs_idx=5;
 name = ['/media/gin/hacker/UCSD_Summer_Research/data/output_new1/' SUBS_NAM{sub_idx},'freqs',num2str(freqsRange(freqs_idx,1)),'_',num2str(freqsRange(freqs_idx,2)),'_','shams_FP.mat'];
 load(name);
@@ -27,22 +24,6 @@ for i = 1:num_tmp
     data_source{2}{i} = prepData.G_r{i};
 end
 
-% [ csp_coeff,all_coeff] = csp_analysis(data_source,6,csp_per_class, 0);
-% [ data_source_filter ] = csp_filtering(data_source, csp_coeff);
-
-%figure
-% data_source_log{1} = log_norm_BP(data_source_filter{1}); 
-% data_source_log{2} = log_norm_BP(data_source_filter{2});
-
-
-%% LDA train
-% trainY = [(-1)*ones(size(data_source_log{1},2),1); ones(size(data_source_log{2},2),1)];
-% [W B class_means] = lda_train_reg([cell2mat(data_source_log{1})';cell2mat(data_source_log{2})'], trainY, 0);
-
-%save tmp_power data_source_log
-%plot_eigen(data_source_filter);
-
-%C1 = reshape(cm(sub_idx,1,1,:,:),[47,47]);
 
 for target_idx= 5 %[1:sub_idx-1 sub_idx+1:6]
 name = ['/media/gin/hacker/UCSD_Summer_Research/data/output_new1/' SUBS_NAM{target_idx},'freqs',num2str(freqsRange(freqs_idx,1)),'_',num2str(freqsRange(freqs_idx,2)),'_','shams_FP.mat'];
@@ -54,54 +35,19 @@ for target_trial = 1:num_tmp
     data_target{2}{target_trial} = prepData.G_r{target_trial};
 end
 
-% [data_target_filter] = csp_filtering(data_target,csp_coeff);
-% data_target_log{1} = log_norm_BP(data_target_filter{1}); 
-% data_target_log{2} = log_norm_BP(data_target_filter{2});
-% %figure
-%plot_power(data_target_log);
-%ylim([-4.5,0])
-%plot_eigen(data_target_filter);
-
-%% LDA
-% [X_LDA predicted_y_class1] = lda_apply(cell2mat(data_target_log{1})', W, B);
-% predicted_y_class1(predicted_y_class1 == 1) = 0;   % incorrect choice
-% predicted_y_class1(predicted_y_class1 == -1) = 1;
-% [X_LDA predicted_y_class2] = lda_apply(cell2mat(data_target_log{2})', W, B);    % there is a vector output! should all be -1! 
-% predicted_y_class2(predicted_y_class2 == -1) = 0;   % wrong choice
-% temp = [predicted_y_class1; predicted_y_class2];
-% acc = sum(temp)/length(temp);   % this is the percent correct classification 
-% disp(['Acc: ' num2str(acc)])
-
-
 
 gm = cell(1,2); %cm 1 right 2 left
 gm{2} = reshape(cm(sub_idx,freqs_idx,1,:,:),[47,47]);
 gm{1} = reshape(cm(sub_idx,freqs_idx,2,:,:),[47,47]);
 
 [gm,store_idx] = update_v1(gm,data_source,data_target);
-%eval(['save store_idx' num2str(sub_idx) ' store_idx']);
+
 %% CSP new gm source
 [ csp_coeff,all_coeff] = csp_analysis(data_source,9,csp_per_class, 0,gm);
 [ data_source_filter ] = csp_filtering(data_source, csp_coeff);
 
 data_source_log{1} = log_norm_BP(data_source_filter{1}); 
 data_source_log{2} = log_norm_BP(data_source_filter{2});
-
-
-% %% LDA train
-% trainY = [(-1)*ones(size(data_source_log{1},2),1); ones(size(data_source_log{2},2),1)];
-% [W B class_means] = lda_train_reg([cell2mat(data_source_log{1})';cell2mat(data_source_log{2})'], trainY, 0);
-% 
-% %% LDA test
-% [X_LDA predicted_y_class1] = lda_apply(cell2mat(data_source_log{1})', W, B);
-% predicted_y_class1(predicted_y_class1 == 1) = 0;   % incorrect choice
-% predicted_y_class1(predicted_y_class1 == -1) = 1;
-% [X_LDA predicted_y_class2] = lda_apply(cell2mat(data_source_log{2})', W, B);    % there is a vector output! should all be -1! 
-% predicted_y_class2(predicted_y_class2 == -1) = 0;   % wrong choice
-% temp = [predicted_y_class1; predicted_y_class2];
-% acc = sum(temp)/length(temp);   % this is the percent correct classification 
-% disp(['Acc: ' num2str(acc)])
-
 
 
 
@@ -119,11 +65,6 @@ data_source_log{2} = log_norm_BP(data_source_filter{2});
 %figure
 data_target_log{1} = log_norm_BP(data_target_filter{1}); 
 data_target_log{2} = log_norm_BP(data_target_filter{2});
-
-%figure
-%save power data_target_log
-%plot_power(data_target_log);
-%ylim([-4.5,0])
 
 
 %% LDA

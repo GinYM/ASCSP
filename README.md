@@ -23,7 +23,7 @@ The algorithm is show as follows.
 
 ## Effect of Subspace Alignment
 
-![no_sa](figure/np_sa.png)
+![no_sa](figure/no_sa.png)
 ![sa](figure/sa.png)
 
 ## Result

@@ -1,23 +1,13 @@
 function [result,store_idx] = update_v1(gm,data_source,data_target)
 csp_per_class=3;
 result=gm;
-%n = length(data_source{1});
 n = 162;
-num_select = 80;
+num_select = 162;
 acc = 0;
 total = 0;
 
-mean_pre = 0;
-mean_delta = 0;
-var2=0;
-
 isVis = zeros(1,n*2);
 
-% for i = 1:2:100
-%     tmp = data_target{1}{i};
-%     data_target{1}{i} = data_target{2}{i};
-%     data_target{2}{i} = tmp;
-% end
 flag = false;
 
 
@@ -28,16 +18,17 @@ for i = 1:160
     best_mean1 = 0;
     best_mean2 = 0;
     
+    %% train a LDA
     if flag == true
         trainY = [(-1)*ones(n,1); ones(n,1)];
         [W,B,class_means] = lda_train_reg(Xproj_tmp(1:324,:), trainY, 0);
         [X_LDA predicted_y_class1] = lda_apply(Xproj_tmp(324+i,:), W, B);
-        %X_LDA
         if predicted_y_class1 == 1 && X_LDA>0.005
             continue;
         end
     end
     
+    %% update covariance matrix
     result_tmp = result;
     C_new = cov(data_target{floor((i-1)/n)+1}{mod((i-1),n)+1}')/trace(cov(data_target{floor((i-1)/n)+1}{mod((i-1),n)+1}'));
     result_tmp{1} = result_tmp{1}*num_select/(num_select+1) + C_new/(num_select+1);
@@ -50,7 +41,7 @@ for i = 1:160
         result_tmp_1 = result_tmp;
         result_tmp_1{2} = result_tmp{2}*num_select/(num_select+1) + C_new/(num_select+1);
         
-        %% calculate CSP using new general matrix which is result
+        %% calculate CSP using new general matrix
         [ csp_coeff,all_coeff] = csp_analysis(data_source,9,csp_per_class, 0,result_tmp_1); % actually don't need data_source
         [ data_source_filter ] = csp_filtering(data_source, csp_coeff);
         [data_target_filter] = csp_filtering(data_target,csp_coeff);
@@ -83,20 +74,19 @@ for i = 1:160
         mean1 = mean(X(1:n*2,:));
         mean2 = mean(X(2*n+1:end,:));
         mean_dif = sum(abs(mean1-mean2));
+        
+        %% 6 is the threshold
         if  mean_dif > 6
             continue;
         end
         
+        %% the mean also should not be too large. (Not present in the algorithm)
         if sum(abs(mean2)) > 20 || sum(abs(mean1)) > 20
             continue;
         end
         
-        %disp(['Mean1: ',num2str(mean(mean1)),' Mean2: ',num2str(mean(mean2))]);
-        
+        %% select the largest variance
         var_t1 = mean(var(Xproj(n*2+1:end,:)));
-        
-%         var_X_t1 = mean(var(X(n*2+1:end,:)));
-%         var_X_t1 = mean(var(X(n*2+1:end,:)));
         if(var_t1>tmp_var )
             flag = true;
             Xproj_tmp = Xproj;
@@ -110,6 +100,7 @@ for i = 1:160
         
     end
     
+    %% already selecting two trials, updating covariance matrix
     if tmp_var ~=0
         C_new = cov(data_target{floor((i-1)/n)+1}{mod((i-1),n)+1}')/trace(cov(data_target{floor((i-1)/n)+1}{mod((i-1),n)+1}'));
         result{1} = result{1}*num_select/(1+num_select) + C_new/(1+num_select);
@@ -131,8 +122,7 @@ for i = 1:160
     
 end
 
-%save idx_tmp idx_all;
-%% show result
+%% show result for selecting accuracy
 [ csp_coeff,all_coeff] = csp_analysis(data_source,9,csp_per_class, 0,result); % actually don't need data_source
 [ data_source_filter ] = csp_filtering(data_source, csp_coeff);
 [data_target_filter] = csp_filtering(data_target,csp_coeff);
@@ -145,19 +135,19 @@ X = zeros(0,6);
 Y = zeros(0,1);
 maLabeled = zeros(0,1,'logical');
 for idx = 1:2
-for ii = 1:size(data_source_log{idx},2)
-    X = [X;data_source_log{idx}{ii}'];
-    Y = [Y;idx];
-    maLabeled = [maLabeled;true];
-end
+    for ii = 1:size(data_source_log{idx},2)
+        X = [X;data_source_log{idx}{ii}'];
+        Y = [Y;idx];
+        maLabeled = [maLabeled;true];
+    end
 end
 
 for idx = 1:2
-for ii = 1:size(data_target_log{1},2)
-    X = [X;data_target_log{idx}{ii}'];
-    Y = [Y;idx];
-    maLabeled = [maLabeled;false];
-end
+    for ii = 1:size(data_target_log{1},2)
+        X = [X;data_target_log{idx}{ii}'];
+        Y = [Y;idx];
+        maLabeled = [maLabeled;false];
+    end
 end
 param = []; param.pcaCoef = 2;
 [Xproj,transMdl] = ftTrans_sa(X,maLabeled,Y(maLabeled),maLabeled,param);
@@ -166,6 +156,8 @@ mean1 = mean(X(1:n*2,:));
 mean2 = mean(X(2*n+1:end,:));
 disp(['Mean1: ' num2str(sum(abs(mean1))) ' Mean2: ' num2str(sum(abs(mean2)))]);
 disp(['Acc: ' num2str(acc/total) ' Total: ' num2str(total)]);
+
+%% uncomment the following codes to visualize the features
 
 % figure
 % plot(1:n,X(1:n,1),'r*');
@@ -187,7 +179,3 @@ disp(['Acc: ' num2str(acc/total) ' Total: ' num2str(total)]);
 % hold on
 % plot(n+1:n*2,Xproj(n*3+1:n*4,1),'go');
 % title(['Trial2']);
-
-
-%disp(['Acc: ' num2str(acc/2/n)]);
-%save tmp_filter data_source_filter data_target_filter
