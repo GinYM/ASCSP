@@ -1,44 +1,60 @@
 # Adaptive Selective CSP based Motor Imagery Classification for Subject to Subject Transfer
 
-Summer research in De Sa's lab supervised by Prof. Virginia De Sa. EEG signals are used to interpret the inner brain activity.
+Summer research in De Sa's lab supervised by Professor Virginia De Sa. The task is to classify motor imagery cross subejct. Such task is challenging because of the lack of label in target subject. 
 
 ## ASCSP
 
-C1, C2 is initialized as mean covariance matrix in source subject.
+C1, C2 are initialized as averaged normalized covariance matrices in source subject.
 
 Then repeatedly do the following two steps.
 
 - Find two trials in target subjetc such that the difference of the mean is minimized and variance after subspace alignment is maximized.
 - Update the covariance matrix with newly selected covariance matrix. C1 = C1\*n/(n+1)+Cnew1/(n+1) and C2 = C2\*n/(n+1) + Cnew2/(n+1)
 
-After adapting C1, C2 with target trials, triditionals CSP is adpoted as spatial filter to reduce the number of electrodes from 47 int 6 which is 3 minimal eigen vactor and 3 maximal eigen vector. Log of variance is used to extract the feature in each dimension in each trial.
 
-Because the subject difference, Subspace Alignment is adopted to reduce the source and target variance. After Subspace Alignment, the dimension is reduced to 2.
-
-After domain adaptation, LDA is used to classify.
-
-The algorithm is show as follows.
+The details for selecting two trials in shown in the following algorithm.
 
 ![algorithm](figure/Algorithm.png)
 
 ## Effect of Subspace Alignment
+###Previous ACSP
+
+![pre](figure/pre.png)
+
+The figure above shows the Adaptive CSP proposed by Song *et al.* in paper *Improving brain–computer interface classification using adaptive common spatial patterns*
+
+###ASCSP
 
 ![no_sa](figure/no_sa.png)
+
+The figures above is the proposed ASCSP in previous algorithm.
+
+###ASCSP with Subspace Alignment
 ![sa](figure/sa.png)
 
+The figure above is ASCSP together with subspace alignment before final classification.
+
+The domain variance is significantly reduced by selecting specific trials and then using subspace alignment.
+
+
 ## Result
-Following table and figure are the result of subject to subject transfer.
 
-Method | Subj1 | Subj2 | SUbj3 | Subj4 | Subj5|Mean  |Std
--------|-------|-------|-------|-------|------|----  |---
-MIDA   |0.5401 |0.5463 |0.5062 |0.4660 |0.4753|0.5068|0.0326
-TSVM   |0.4846 |0.5062 |0.5432 |0.5231 |0.5201|0.5154|**0.0194**
-CSP    |0.5015 |0.4628 |0.5863 |0.5000 |0.5506|0.5202|0.0432
-GFK    |0.5031 |0.5772 |0.5031 |0.5710 |0.5617|0.5432|0.0331
-ASCSP  |**0.5864** |**0.5803** |**0.6728** |**0.6049** |**0.6080**|**0.6105**|0.0368
 
-![bar_all](figure/plot_all.png)
+Method    | Subj1 | Subj2 | SUbj3 | Subj4 | Subj5|Subj6
+----------|-------|-------|-------|-------|------|------
+CSP       |0.5055 |0.4951 |0.4969 |0.4734 |0.4704|0.5043
+ACSP      |0.5062 |0.4957 |0.5179 |0.5006 |0.5019|0.5019
+ASCSP     |0.5512 |0.5426 |0.5278 |0.5432 |0.5247|0.5722
+ASCSP SA  |**0.5580** |**0.6401** |**0.5654** |**0.6160** |**0.5969**|**0.6562**
 
-## Usage
+The table above shows the mean of subject-to-subject transfer learning in four different methods. The first row is the test subject index. The accuracies are calculated as the mean of five traiing subjects. 
 
-Run **test.m** to test the ASCSP.
+![bar_all](figure/comparison.png)
+
+The figure above illustrates the the comparison with supervised learning.
+
+## File discriptin
+
+- **ASCSP.m** the main file for running ASCSP with and without subspace alignment.
+- **update_v1.m** the main file for updating the covariance matrix.
+- **baseline.m** methods of CSP with and without subspace alignment.
