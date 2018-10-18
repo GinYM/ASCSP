@@ -1,0 +1,2 @@
+Train Subj 1
+Target Subj2: CSP: 0.534014 SACSP: 0.527211
